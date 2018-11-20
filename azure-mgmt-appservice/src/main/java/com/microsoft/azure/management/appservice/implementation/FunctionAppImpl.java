@@ -49,7 +49,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.HashMap;
 import java.util.List;
@@ -438,20 +437,6 @@ class FunctionAppImpl
                 expire = Long.parseLong(matcher.group(1));
             }
             return token;
-        }
-    }
-
-    private static class PipedInputStreamWithCallback extends PipedInputStream {
-        private Action0 callback;
-
-        private void addCallback(Action0 action) {
-            this.callback = action;
-        }
-
-        @Override
-        public void close() throws IOException {
-            callback.call();
-            super.close();
         }
     }
 }

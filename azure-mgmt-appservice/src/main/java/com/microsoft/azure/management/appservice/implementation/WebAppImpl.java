@@ -15,11 +15,18 @@ import com.microsoft.azure.management.appservice.RuntimeStack;
 import com.microsoft.azure.management.appservice.WebApp;
 import com.microsoft.azure.management.resources.fluentcore.model.Creatable;
 import rx.Completable;
+import rx.Observable;
+import rx.Subscription;
+import rx.functions.Action0;
+import rx.functions.Action1;
+import rx.schedulers.Schedulers;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 
 /**
  * The implementation for WebApp.
@@ -212,6 +219,49 @@ class WebAppImpl
     }
 
     @Override
+    public InputStream streamApplicationLogs() {
+        PipedInputStreamWithCallback in = new PipedInputStreamWithCallback();
+        final PipedOutputStream out = new PipedOutputStream();
+        try {
+            in.connect(out);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        final Subscription subscription = streamApplicationLogsAsync()
+            // Do not block current thread
+            .subscribeOn(Schedulers.newThread())
+            .subscribe(new Action1<String>() {
+                @Override
+                public void call(String s) {
+                    try {
+                        out.write(s.getBytes());
+                        out.write('\n');
+                        out.flush();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            });
+        in.addCallback(new Action0() {
+            @Override
+            public void call() {
+                subscription.unsubscribe();
+                try {
+                    out.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        return in;
+    }
+
+    @Override
+    public Observable<String> streamApplicationLogsAsync() {
+        return kuduClient.streamApplicationLogsAsync();
+    }
+
+    @Override
     public void warDeploy(File warFile, String appName) {
         warDeployAsync(warFile, appName).await();
     }
@@ -247,5 +297,19 @@ class WebAppImpl
     @Override
     public void zipDeploy(InputStream zipFile) {
         zipDeployAsync(zipFile).await();
+    }
+
+    private static class PipedInputStreamWithCallback extends PipedInputStream {
+        private Action0 callback;
+
+        private void addCallback(Action0 action) {
+            this.callback = action;
+        }
+
+        @Override
+        public void close() throws IOException {
+            callback.call();
+            super.close();
+        }
     }
 }

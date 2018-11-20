@@ -27,11 +27,13 @@ import com.microsoft.azure.management.resources.fluentcore.utils.SdkContext;
 import rx.Completable;
 import rx.Observable;
 import rx.exceptions.Exceptions;
+import rx.functions.Action0;
 import rx.functions.Func1;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PipedInputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -423,5 +425,19 @@ abstract class AppServiceBaseImpl<
         inner().withServerFarmId(appServicePlan.id());
         this.withRegion(appServicePlan.regionName());
         return withOperatingSystem(appServicePlan.operatingSystem());
+    }
+
+    protected static class PipedInputStreamWithCallback extends PipedInputStream {
+        private Action0 callback;
+
+        protected void addCallback(Action0 action) {
+            this.callback = action;
+        }
+
+        @Override
+        public void close() throws IOException {
+            callback.call();
+            super.close();
+        }
     }
 }

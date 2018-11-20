@@ -16,6 +16,7 @@ import com.microsoft.azure.management.resources.fluentcore.model.Creatable;
 import com.microsoft.azure.management.resources.fluentcore.model.Refreshable;
 import com.microsoft.azure.management.resources.fluentcore.model.Updatable;
 import rx.Completable;
+import rx.Observable;
 
 import java.io.File;
 import java.io.InputStream;
@@ -97,6 +98,18 @@ public interface WebApp extends
      */
     @Beta(SinceVersion.V1_7_0)
     Completable warDeployAsync(InputStream warFile, String appName);
+
+    /**
+     * @return a open stream to the application logs
+     */
+    @Beta
+    InputStream streamApplicationLogs();
+
+    /**
+     * @return an Observable streaming application logs
+     */
+    @Beta
+    Observable<String> streamApplicationLogsAsync();
 
     /**************************************************************
      * Fluent interfaces to provision a Web App
